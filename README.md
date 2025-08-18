@@ -105,7 +105,6 @@ create index if not exists idx_profiles_tags on profiles using gin (lifestyle_ta
 ### 5. Run the app locally
 
 npm run dev
-
 Then open http://localhost:3000.
 
 ---
@@ -113,39 +112,28 @@ Then open http://localhost:3000.
 ### 🚀 Deployment
 
 Push your repo to GitHub.
-
 Connect the repo to Vercel.
-
 Add the same environment variables (SUPABASE_URL and SUPABASE_ANON_KEY) in the Vercel dashboard.
-
 Deploy — your app will be live on a vercel.app domain.
 
 ---
 
 ### ✅ Milestones Implemented
 
- User profiles with city, budget, move-in date, tags
-
- Database indexes for performance
-
- Browse page with filters & matching score
-
- Secure API route for profile search (/api/browse)
-
- Authenticated contact requests
-
- Deployment to Vercel with demo seed data
+User profiles with city, budget, move-in date, tags
+Database indexes for performance
+Browse page with filters & matching score
+Secure API route for profile search (/api/browse)
+Authenticated contact requests
+Deployment to Vercel with demo seed data
 
 ---
 
 ### 🔮 Next Steps
 
 Add /api/contact-request endpoint instead of direct DB inserts
-
 Add pagination or infinite scroll to Browse results
-
 Add “accept/decline” for connection requests
-
 Add block/report and verification for safety
 
 ---
@@ -155,9 +143,6 @@ Add block/report and verification for safety
 Built by Rujula More
 
 🎓 MS in Computer Science, Oregon State University
-
-🌐 Portfolio
-
 💼 Open to software engineering opportunities
 
 
