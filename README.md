@@ -141,8 +141,10 @@ Add block/report and verification for safety
 ### 👩‍💻 Author
 
 Built by Rujula More
+© 2025 RoomieBoard™. All rights reserved.
 
 🎓 MS in Computer Science, Oregon State University
+
 💼 Open to software engineering opportunities
 
 
