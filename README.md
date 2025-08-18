@@ -33,14 +33,14 @@ Users can create a profile (city, budget, move-in date, lifestyle tags), browse 
 
 src/
 ├─ app/
-│ ├─ api/
-│ │ └─ browse/
-│ │ └─ route.ts # API route for filtered profile search
-│ ├─ browse/ # Browse page
-│ ├─ signin/ # Sign-in page
-│ └─ page.tsx # Home page
-├─ components/ # UI components (ProfileCard, Filters, etc.)
-└─ lib/ # Supabase client, helpers
+│  ├─ api/
+│  │  └─ browse/
+│  │     └─ route.ts   # API route for filtered profile search
+│  ├─ browse/          # Browse page
+│  ├─ signin/          # Sign-in page
+│  └─ page.tsx         # Home page
+├─ components/         # UI components (ProfileCard, Filters, etc.)
+└─ lib/                # Supabase client, helpers
 
 
 ---
