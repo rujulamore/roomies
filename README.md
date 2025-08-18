@@ -48,9 +48,11 @@ src/
 ## ⚡ Getting Started
 
 ### 1. Clone the repo
-```bash
+
 git clone https://github.com/your-username/roomieboard.git
 cd roomieboard
+
+---
 
 ### 2. Install dependencies
 
@@ -58,12 +60,16 @@ npm install
 # or
 yarn install
 
+---
+
 ### 3. Set up environment variables
 
 Create a .env.local file in the root:
 
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+---
 
 ### 4. Database setup (Supabase)
 
@@ -93,11 +99,15 @@ create index if not exists idx_profiles_city on profiles (lower(city));
 create index if not exists idx_profiles_budget_range on profiles (budget_min, budget_max);
 create index if not exists idx_profiles_tags on profiles using gin (lifestyle_tags);
 
+---
+
 ### 5. Run the app locally
 
 npm run dev
 
 Then open http://localhost:3000.
+
+---
 
 ### 🚀 Deployment
 
@@ -108,6 +118,8 @@ Connect the repo to Vercel.
 Add the same environment variables (SUPABASE_URL and SUPABASE_ANON_KEY) in the Vercel dashboard.
 
 Deploy — your app will be live on a vercel.app domain.
+
+---
 
 ### ✅ Milestones Implemented
 
@@ -123,6 +135,8 @@ Deploy — your app will be live on a vercel.app domain.
 
  Deployment to Vercel with demo seed data
 
+---
+
 ### 🔮 Next Steps
 
 Add /api/contact-request endpoint instead of direct DB inserts
@@ -132,6 +146,8 @@ Add pagination or infinite scroll to Browse results
 Add “accept/decline” for connection requests
 
 Add block/report and verification for safety
+
+---
 
 ### 👩‍💻 Author
 
