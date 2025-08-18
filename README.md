@@ -1,36 +1,148 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏠 RoomieBoard — Roommate Matching Web App
 
-## Getting Started
+RoomieBoard is a simple web application that helps people find compatible roommates.  
+Users can create a profile (city, budget, move-in date, lifestyle tags), browse others, and send connection requests.
 
-First, run the development server:
+---
 
+## ✨ Features
+
+- **Profiles**: Each user sets up a profile with city, budget, move-in date, and lifestyle tags.
+- **Browse & Filter**: Search roommates by city, budget range, tags, and move-in timing.
+- **Matching Score**: Transparent scoring based on shared city, overlapping budgets, common tags, and similar move-in dates.
+- **Contact Requests**: Authenticated users can send requests to connect with others.
+- **Authentication**: Supabase handles sign-up, login, and user sessions.
+- **Safe Backend Calls**: Filters and database queries run through secure Next.js API routes.
+- **Indexes for Speed**: Postgres indexes on city, budget ranges, and tags make searching fast.
+- **Responsive UI**: Styled with Tailwind for a clean, mobile-friendly layout.
+- **Deployment Ready**: Hosted easily on Vercel with Supabase backend.
+
+---
+
+## 🛠️ Tech Stack
+
+- [Next.js 14 (App Router)](https://nextjs.org/) — React framework for frontend + backend routes
+- [TypeScript](https://www.typescriptlang.org/) — Type safety
+- [Supabase](https://supabase.com/) — Postgres database + authentication
+- [Tailwind CSS](https://tailwindcss.com/) — Styling
+- [Vercel](https://vercel.com/) — Hosting & deployment
+
+---
+
+## 📂 Project Structure
+
+src/
+├─ app/
+│ ├─ api/
+│ │ └─ browse/
+│ │ └─ route.ts # API route for filtered profile search
+│ ├─ browse/ # Browse page
+│ ├─ signin/ # Sign-in page
+│ └─ page.tsx # Home page
+├─ components/ # UI components (ProfileCard, Filters, etc.)
+└─ lib/ # Supabase client, helpers
+
+
+---
+
+## ⚡ Getting Started
+
+### 1. Clone the repo
 ```bash
+git clone https://github.com/your-username/roomieboard.git
+cd roomieboard
+
+### 2. Install dependencies
+
+npm install
+# or
+yarn install
+
+### 3. Set up environment variables
+
+Create a .env.local file in the root:
+
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+### 4. Database setup (Supabase)
+
+Run this SQL in Supabase to set up tables:
+
+-- Profiles table
+create table if not exists profiles (
+  id uuid primary key default gen_random_uuid(),
+  city text,
+  budget_min int,
+  budget_max int,
+  move_in_date date,
+  lifestyle_tags text[],
+  updated_at timestamp default now()
+);
+
+-- Contact requests table
+create table if not exists contact_requests (
+  id bigint primary key generated always as identity,
+  sender uuid references profiles(id),
+  receiver uuid references profiles(id),
+  created_at timestamp default now()
+);
+
+-- Useful indexes
+create index if not exists idx_profiles_city on profiles (lower(city));
+create index if not exists idx_profiles_budget_range on profiles (budget_min, budget_max);
+create index if not exists idx_profiles_tags on profiles using gin (lifestyle_tags);
+
+### 5. Run the app locally
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🚀 Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Push your repo to GitHub.
 
-## Learn More
+Connect the repo to Vercel.
 
-To learn more about Next.js, take a look at the following resources:
+Add the same environment variables (SUPABASE_URL and SUPABASE_ANON_KEY) in the Vercel dashboard.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Deploy — your app will be live on a vercel.app domain.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### ✅ Milestones Implemented
 
-## Deploy on Vercel
+ User profiles with city, budget, move-in date, tags
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+ Database indexes for performance
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+ Browse page with filters & matching score
+
+ Secure API route for profile search (/api/browse)
+
+ Authenticated contact requests
+
+ Deployment to Vercel with demo seed data
+
+### 🔮 Next Steps
+
+Add /api/contact-request endpoint instead of direct DB inserts
+
+Add pagination or infinite scroll to Browse results
+
+Add “accept/decline” for connection requests
+
+Add block/report and verification for safety
+
+### 👩‍💻 Author
+
+Built by Rujula More
+
+🎓 MS in Computer Science, Oregon State University
+
+🌐 Portfolio
+
+💼 Open to software engineering opportunities
+
+
+
+
