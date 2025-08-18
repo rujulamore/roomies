@@ -31,6 +31,7 @@ Users can create a profile (city, budget, move-in date, lifestyle tags), browse 
 
 ## 📂 Project Structure
 
+```bash
 src/
 ├─ app/
 │  ├─ api/
