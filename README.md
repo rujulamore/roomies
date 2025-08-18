@@ -43,7 +43,7 @@ src/
 ├─ components/         # UI components (ProfileCard, Filters, etc.)
 └─ lib/                # Supabase client, helpers
 
-
+```
 ---
 
 ## ⚡ Getting Started
