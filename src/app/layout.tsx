@@ -11,8 +11,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="space-x-4 text-sm">
               <a href="/browse" className="hover:underline">Browse</a>
               <a href="/profile" className="hover:underline">My Profile</a>
-              <a href="/signin" className="hover:underline">Sign in</a>
               <a href="/matches" className="hover:underline">Top Matches</a>
+              <a href="/requests" className="hover:underline">Requests</a>
+              <a href="/signin" className="hover:underline">Sign in</a>
             </nav>
           </div>
         </header>
