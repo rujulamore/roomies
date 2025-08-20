@@ -11,14 +11,18 @@ export default function MatchesPage() {
   useEffect(() => {
     (async () => {
       setLoading(true)
+
+      // 1) who’s logged in?
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { location.href = '/signin'; return }
 
+      // 2) load my profile row
       const { data: mine, error: meErr } = await supabase.from('profiles')
         .select('*').eq('id', user.id).maybeSingle()
       if (meErr) { setErr(meErr.message); setLoading(false); return }
       if (!mine) { location.href = '/profile'; return }
 
+      // 3) make a tiny object that scoring needs
       const me: Me = {
         city: mine.city,
         budget_min: mine.budget_min,
@@ -33,6 +37,7 @@ export default function MatchesPage() {
       })
       if (rpcErr) { setErr(rpcErr.message); setLoading(false); return }
 
+      // 5) score everyone, sort, keep 20
       const scored = (candidates as Candidate[])
         .filter(c => c.id !== user.id)
         .map(c => ({ ...c, _score: compatScore(me, c) }))
