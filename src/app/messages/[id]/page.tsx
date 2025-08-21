@@ -13,6 +13,7 @@ export default function ChatPage() {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const endRef = useRef<HTMLDivElement | null>(null)
+  const [partnerName, setPartnerName] = useState<string>('Chat')
 
   useEffect(() => {
     (async () => {
@@ -29,14 +30,19 @@ export default function ChatPage() {
       if (error) { alert(error.message); router.push('/browse'); return }
       setMsgs(data as Msg[])
       setLoading(false)
+    
+      // 2) mark as read NOW (you’ve viewed the thread)
+      await supabase.rpc('mark_read', { _conversation_id: id as string })
 
       // Realtime: subscribe to new messages in this conversation
       const channel = supabase.channel(`room:messages:${id}`)
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-          (payload) => {
+          async (payload) => {
             setMsgs(m => [...m, payload.new as Msg])
-            // auto scroll
+            if (document.visibilityState === 'visible') {
+              await supabase.rpc('mark_read', { _conversation_id: id as string })
+            }
             setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 0)
           })
         .subscribe()
@@ -44,6 +50,31 @@ export default function ChatPage() {
       return () => { supabase.removeChannel(channel) }
     })()
   }, [id, router])
+
+
+  useEffect(() => {
+  (async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/signin'); return }
+      setUserId(user.id)
+
+      // Initial load (RLS ensures you must be a participant)
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', id)
+        .order('created_at', { ascending: true })
+      if (error) { alert(error.message); router.push('/browse'); return }
+      setMsgs(data as Msg[])
+      setLoading(false)
+
+    // existing auth + load logic...
+    const { data: partners } = await supabase.rpc('conversation_partners', { _cid: id as string })
+    const me = (await supabase.auth.getUser()).data.user!.id
+    const other = (partners || []).find((p: any) => p.user_id !== me)
+    if (other?.display_name) setPartnerName(other.display_name)
+  })()
+}, [id])
 
   async function send() {
     const content = text.trim()
@@ -54,6 +85,34 @@ export default function ChatPage() {
     if (error) { alert(error.message); return }
     setText('')
   }
+
+  function downloadFile(filename: string, mime: string, content: string) {
+    const blob = new Blob([content], { type: mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  
+  function exportMarkdown() {
+    const lines = [
+      `# Chat with ${partnerName}`,
+      '',
+      ...msgs.map(m => {
+        const who = m.sender === userId ? 'You' : partnerName
+        const when = new Date(m.created_at).toLocaleString()
+        return `**${who}** [${when}]\n\n${m.content}\n`
+      })
+    ]
+    downloadFile(`chat-${id}.md`, 'text/markdown', lines.join('\n'))
+  }
+  
+  function exportJSON() {
+    downloadFile(`chat-${id}.json`, 'application/json', JSON.stringify(msgs, null, 2))
+  }
+
 
   if (loading) return <p>Loading chat…</p>
 
@@ -70,6 +129,8 @@ export default function ChatPage() {
         <div ref={endRef} />
       </div>
       <div className="p-3 border-t flex gap-2">
+        <button className="px-3 py-2 border rounded" onClick={exportMarkdown}>Save .md</button>
+        <button className="px-3 py-2 border rounded" onClick={exportJSON}>Save .json</button>
         <input
           className="flex-1 border rounded px-3 py-2"
           placeholder="Type a message…"

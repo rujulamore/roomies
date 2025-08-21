@@ -1,12 +1,23 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback} from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { compatScore, type Candidate, type Me } from '@/lib/score'
+import { useRouter } from 'next/navigation'
 
 export default function MatchesPage() {
   const [rows, setRows] = useState<(Candidate & { _score: number })[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+  const router = useRouter()
+
+  const startDM = useCallback(async (partnerId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/signin'); return }
+    const { data: cid, error } = await supabase.rpc('get_or_create_dm', { _partner: partnerId })
+    if (error) { alert(error.message); return }
+    router.push(`/messages/${cid}`)
+  }, [router])
 
   useEffect(() => {
     (async () => {
@@ -15,6 +26,7 @@ export default function MatchesPage() {
       // 1) who’s logged in?
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { location.href = '/signin'; return }
+      setUserId(user.id)
 
       // 2) load my profile row
       const { data: mine, error: meErr } = await supabase.from('profiles')
@@ -47,6 +59,7 @@ export default function MatchesPage() {
       setRows(scored)
       setLoading(false)
     })()
+    
   }, [])
 
   if (loading) return <p>Loading matches…</p>
@@ -74,6 +87,16 @@ export default function MatchesPage() {
               ))}
               {p.has_pets && <span className="text-xs border rounded px-2 py-1">has pets</span>}
             </div>
+
+            {userId && userId !== p.id && (
+              <div className="mt-3 flex gap-2">
+                <button
+                  className="text-xs px-2 py-1 border rounded"
+                  onClick={() => startDM(p.id)}
+                >
+                  Message
+                </button>
+                </div>)}
           </li>
         ))}
         {rows.length === 0 && <p>No matches yet—add city/tags/budget in your profile.</p>}
