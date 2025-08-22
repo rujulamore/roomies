@@ -9,19 +9,22 @@ export default function ChatPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
+  const [partnerName, setPartnerName] = useState('Chat')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const endRef = useRef<HTMLDivElement | null>(null)
-  const [partnerName, setPartnerName] = useState<string>('Chat')
 
   useEffect(() => {
-    (async () => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    ;(async () => {
+      // 1) auth
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/signin'); return }
       setUserId(user.id)
 
-      // Initial load (RLS ensures you must be a participant)
+      // 2) initial messages
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -30,60 +33,51 @@ export default function ChatPage() {
       if (error) { alert(error.message); router.push('/browse'); return }
       setMsgs(data as Msg[])
       setLoading(false)
-    
-      // 2) mark as read NOW (you’ve viewed the thread)
+
+      // 3) partner display name (nice for export/header)
+      const { data: partners } = await supabase.rpc('conversation_partners', { _cid: id as string })
+      const other = (partners || []).find((p: any) => p.user_id !== user.id)
+      if (other?.display_name) setPartnerName(other.display_name)
+
+      // 4) mark read (you've viewed the thread)
       await supabase.rpc('mark_read', { _conversation_id: id as string })
 
-      // Realtime: subscribe to new messages in this conversation
-      const channel = supabase.channel(`room:messages:${id}`)
-        .on('postgres_changes',
+      // 5) subscribe ONCE to inserts in this conversation
+      channel = supabase
+        .channel(`room:messages:${id}`)
+        .on(
+          'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-          async (payload) => {
-            setMsgs(m => [...m, payload.new as Msg])
-            if (document.visibilityState === 'visible') {
-              await supabase.rpc('mark_read', { _conversation_id: id as string })
-            }
+          (payload) => {
+            const m = payload.new as Msg
+            // de-dupe: avoids double-bubble when optimistic + realtime both hit
+            setMsgs(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m]))
             setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 0)
-          })
-        .subscribe()
-
-      return () => { supabase.removeChannel(channel) }
+          }
+        )
+        .subscribe((status) => console.log('Realtime status:', status)) // should log SUBSCRIBED
     })()
+
+    return () => { if (channel) supabase.removeChannel(channel) }
   }, [id, router])
-
-
-  useEffect(() => {
-  (async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/signin'); return }
-      setUserId(user.id)
-
-      // Initial load (RLS ensures you must be a participant)
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', id)
-        .order('created_at', { ascending: true })
-      if (error) { alert(error.message); router.push('/browse'); return }
-      setMsgs(data as Msg[])
-      setLoading(false)
-
-    // existing auth + load logic...
-    const { data: partners } = await supabase.rpc('conversation_partners', { _cid: id as string })
-    const me = (await supabase.auth.getUser()).data.user!.id
-    const other = (partners || []).find((p: any) => p.user_id !== me)
-    if (other?.display_name) setPartnerName(other.display_name)
-  })()
-}, [id])
 
   async function send() {
     const content = text.trim()
     if (!content || !userId) return
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: id, sender: userId, content
-    })
+
+    // Return the inserted row so we can render immediately
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({ conversation_id: id, sender: userId, content })
+      .select('*')
+      .single()
+
     if (error) { alert(error.message); return }
+
+    setMsgs(prev => (prev.some(x => x.id === data.id) ? prev : [...prev, data as Msg]))
     setText('')
+    await supabase.rpc('mark_read', { _conversation_id: id as string })
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 0)
   }
 
   function downloadFile(filename: string, mime: string, content: string) {
@@ -95,7 +89,7 @@ export default function ChatPage() {
     a.click()
     URL.revokeObjectURL(url)
   }
-  
+
   function exportMarkdown() {
     const lines = [
       `# Chat with ${partnerName}`,
@@ -108,11 +102,10 @@ export default function ChatPage() {
     ]
     downloadFile(`chat-${id}.md`, 'text/markdown', lines.join('\n'))
   }
-  
+
   function exportJSON() {
     downloadFile(`chat-${id}.json`, 'application/json', JSON.stringify(msgs, null, 2))
   }
-
 
   if (loading) return <p>Loading chat…</p>
 
