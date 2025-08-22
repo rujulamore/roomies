@@ -61,6 +61,14 @@ export default function ChatPage() {
     return () => { if (channel) supabase.removeChannel(channel) }
   }, [id, router])
 
+  useEffect(() => {
+  const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    // ensure Realtime socket has the latest token
+    supabase.realtime.setAuth(session?.access_token ?? '')
+  })
+  return () => { sub.subscription.unsubscribe() }
+}, [])
+
   async function send() {
     const content = text.trim()
     if (!content || !userId) return
