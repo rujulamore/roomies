@@ -40,6 +40,14 @@ export default function ProfilePage() {
   const [p, setP] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  async function loadAvatar(uid: string) {
+  const path = `${uid}/profile.jpg`
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  if (data?.publicUrl) setAvatarUrl(data.publicUrl)
+  }
 
   useEffect(() => {
     (async () => {
@@ -49,6 +57,7 @@ export default function ProfilePage() {
         return
       }
       setUserId(user.id)
+      await loadAvatar(user.id)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -90,6 +99,34 @@ export default function ProfilePage() {
   return (
     <form onSubmit={save} className="space-y-4 max-w-2xl">
       <h1 className="text-xl font-semibold">My Profile</h1>
+      <div className="flex items-center gap-4">
+        <img
+          src={avatarUrl ?? 'https://via.placeholder.com/96?text=Avatar'}
+          alt="avatar"
+          className="w-24 h-24 rounded-full object-cover border bg-white"
+        />
+        <label className="text-sm">
+          <span className="px-3 py-2 border rounded cursor-pointer inline-block">
+            {uploading ? 'Uploading…' : 'Upload avatar'}
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file || !userId) return
+              setUploading(true)
+              const path = `${userId}/profile.jpg`
+              // upsert: true overwrites existing
+              const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+              setUploading(false)
+              if (error) { alert(error.message); return }
+              await loadAvatar(userId)
+            }}
+          />
+        </label>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <label className="block text-sm">Display name
           <input className="w-full border rounded px-3 py-2" value={p.display_name}
@@ -116,7 +153,7 @@ export default function ProfilePage() {
             onChange={(e)=>setP({...p, has_pets: e.target.checked})} /> Has pets
         </label>
       </div>
-
+      
       <label className="block text-sm">Bio
         <textarea className="w-full border rounded px-3 py-2" rows={4} value={p.bio ?? ''}
           onChange={(e)=>setP({...p, bio: e.target.value})} />

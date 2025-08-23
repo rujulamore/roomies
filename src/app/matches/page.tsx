@@ -72,6 +72,22 @@ export default function MatchesPage() {
         {rows.map(p => (
           <li key={p.id} className="border bg-white rounded p-4">
             <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src={`${
+                  supabase.storage.from('avatars').getPublicUrl(`${p.id}/profile.jpg`).data.publicUrl
+                }`}
+                alt="avatar"
+                className="w-10 h-10 rounded-full object-cover border bg-white"
+              />
+              <div>
+                <h3 className="font-semibold">{p.display_name}</h3>
+                <div className="text-sm text-gray-600">{p.city} · ${p.budget_min}-{p.budget_max} · Move-in {p.move_in_date}</div>
+              </div>
+            </div>
+          </div>
+
+            <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-semibold">{p.display_name}</h3>
                 <div className="text-sm text-gray-600">
