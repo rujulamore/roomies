@@ -65,39 +65,41 @@ export default function ApartmentsPage() {
     if (!a.error && a.data) setListings(a.data as Listing[])
     if (!b.error && b.data) setExternals(b.data as any)
   }
-
-  async function saveListing(e: React.FormEvent) {
-    e.preventDefault()
-    if (!userId) { location.href = '/signin'; return }
-    if (!form.title || !form.city || !form.rent) { alert('Title, City, and Rent are required.'); return }
-    setHostSaving(true)
-    const payload = {
-      owner: userId,
-      title: form.title!,
-      description: form.description || '',
-      city: form.city!,
-      address: form.address || '',
-      rent: Number(form.rent),
-      bedrooms: form.bedrooms ?? null,
-      bathrooms: form.bathrooms ?? null,
-      move_in_date: form.move_in_date || null,
-      url: form.url || null,
-    }
-    const { error } = await supabase.from('listings').insert(payload)
-    setHostSaving(false)
-    if (error) { alert(error.message); return }
-    setForm({ title:'', city:'', rent:0, bedrooms:1, bathrooms:1, move_in_date:'' })
-    await refresh()
+async function saveListing(e: React.FormEvent) {
+  e.preventDefault()
+  if (!userId) { location.href = '/signin'; return }
+  if (!form.title || !form.city || !form.rent) {
+    alert('Title, City, and Rent are required.')
+    return
   }
+  setHostSaving(true)
+  const payload = {
+    owner: userId,
+    title: form.title!,
+    description: form.description || '',
+    city: form.city!,
+    address: form.address || '',
+    rent: Number(form.rent),
+    bedrooms: form.bedrooms ?? null,
+    bathrooms: form.bathrooms ?? null,
+    move_in_date: form.move_in_date || null,
+    url: form.url || null,
+  }
+  const { error } = await supabase.from('listings').insert(payload)
+  setHostSaving(false)
+  if (error) { alert(error.message); return }
+  setForm({ title: '', city: '', rent: 0, bedrooms: 1, bathrooms: 1, move_in_date: '' })
+  await refresh()
+}
 
-  async function addLink(e: React.FormEvent) {
+async function addLink(e: React.FormEvent) {
   e.preventDefault()
   if (!userId) { location.href = '/signin'; return }
   const raw = linkUrl.trim()
   if (!raw) return
   setLinkSaving(true)
 
-  // 1) fetch OG + canonical
+  // 1) Fetch OG + canonical
   const resp = await fetch('/api/og', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -108,7 +110,7 @@ export default function ApartmentsPage() {
 
   const canonical = og.canonical || og.url
 
-  // 2) fast path: is it already in the table?
+  // 2) First, check if it already exists
   let { data: existing, error: selErr } = await supabase
     .from('external_listings')
     .select('*')
@@ -117,47 +119,58 @@ export default function ApartmentsPage() {
 
   if (selErr) { setLinkSaving(false); alert(selErr.message); return }
 
-  // 3) if not, try to insert (owner = me). Handle race (unique violation).
-  if (!existing) {
-    const { data: inserted, error: insErr } = await supabase
-      .from('external_listings')
-      .insert({
-        owner: userId,
-        url_canonical: canonical,
-        url: og.url,
-        title: og.title || null,
-        image_url: og.image || null,
-        site_name: og.site || null,
-        city: null,
-        rent: null,
-      })
-      .select()
-      .single()
-
-    if (insErr) {
-      // someone else inserted first → re-select and proceed
-      if ((insErr as any).code === '23505') {
-        const again = await supabase
-          .from('external_listings')
-          .select('*')
-          .eq('url_canonical', canonical)
-          .maybeSingle()
-        existing = again.data ?? null
-      } else {
-        setLinkSaving(false)
-        alert(insErr.message)
-        return
-      }
-    } else {
-      existing = inserted
-    }
+  if (existing) {
+    // Already in the catalog
+    setLinkSaving(false)
+    setLinkUrl('')
+    show('That link is already added')
+    await refresh()
+    return
   }
 
+  // 3) Try to insert (owned by me). Handle concurrent unique conflict.
+  const { data: inserted, error: insErr } = await supabase
+    .from('external_listings')
+    .insert({
+      owner: userId,
+      url_canonical: canonical,
+      url: og.url,
+      title: og.title || null,
+      image_url: og.image || null,
+      site_name: og.site || null,
+      city: null,
+      rent: null,
+    })
+    .select()
+    .single()
+
+  if (insErr) {
+    // If someone else inserted first, we still tell the user it's already there.
+    if ((insErr as any).code === '23505') {
+      setLinkSaving(false)
+      setLinkUrl('')
+      show('That link is already added')
+      await refresh()
+      return
+    }
+    setLinkSaving(false)
+    alert(insErr.message)
+    return
+  }
+
+  // Fresh insert
   setLinkSaving(false)
   setLinkUrl('')
-  await refresh() // reload list
-  // Optional UX: toast “Already added” if we hit the dedupe path
+  show('Link added')
+  await refresh()
 }
+
+
+const [toast, setToast] = useState<string | null>(null)
+    function show(msg: string) {
+      setToast(msg)
+      setTimeout(() => setToast(null), 2500)
+    }
 
 
   const filtered = listings.filter(l => {
@@ -170,6 +183,12 @@ export default function ApartmentsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Apartments</h1>
+      {toast && (
+  <div className="fixed bottom-4 right-4 bg-black text-white text-sm px-3 py-2 rounded shadow">
+    {toast}
+  </div>
+)}
+
 
       {/* Tabs */}
       <div className="flex gap-2">
