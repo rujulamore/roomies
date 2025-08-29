@@ -91,30 +91,74 @@ export default function ApartmentsPage() {
   }
 
   async function addLink(e: React.FormEvent) {
-    e.preventDefault()
-    if (!userId) { location.href = '/signin'; return }
-    const u = linkUrl.trim()
-    if (!u) return
-    setLinkSaving(true)
-    // fetch OG metadata from our server
-    const resp = await fetch('/api/og', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url: u }) })
-    const og = await resp.json()
-    if (!resp.ok) { setLinkSaving(false); alert(og.error || 'OG fetch failed'); return }
-    // save to external_listings
-    const { error } = await supabase.from('external_listings').insert({
-      owner: userId,
-      url: og.url || u,
-      title: og.title || null,
-      image_url: og.image || null,
-      site_name: og.site || null,
-      city: null,
-      rent: null
-    })
-    setLinkSaving(false)
-    if (error) { alert(error.message); return }
-    setLinkUrl('')
-    await refresh()
+  e.preventDefault()
+  if (!userId) { location.href = '/signin'; return }
+  const raw = linkUrl.trim()
+  if (!raw) return
+  setLinkSaving(true)
+
+  // 1) fetch OG + canonical
+  const resp = await fetch('/api/og', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: raw }),
+  })
+  const og = await resp.json()
+  if (!resp.ok) { setLinkSaving(false); alert(og.error || 'OG fetch failed'); return }
+
+  const canonical = og.canonical || og.url
+
+  // 2) fast path: is it already in the table?
+  let { data: existing, error: selErr } = await supabase
+    .from('external_listings')
+    .select('*')
+    .eq('url_canonical', canonical)
+    .maybeSingle()
+
+  if (selErr) { setLinkSaving(false); alert(selErr.message); return }
+
+  // 3) if not, try to insert (owner = me). Handle race (unique violation).
+  if (!existing) {
+    const { data: inserted, error: insErr } = await supabase
+      .from('external_listings')
+      .insert({
+        owner: userId,
+        url_canonical: canonical,
+        url: og.url,
+        title: og.title || null,
+        image_url: og.image || null,
+        site_name: og.site || null,
+        city: null,
+        rent: null,
+      })
+      .select()
+      .single()
+
+    if (insErr) {
+      // someone else inserted first → re-select and proceed
+      if ((insErr as any).code === '23505') {
+        const again = await supabase
+          .from('external_listings')
+          .select('*')
+          .eq('url_canonical', canonical)
+          .maybeSingle()
+        existing = again.data ?? null
+      } else {
+        setLinkSaving(false)
+        alert(insErr.message)
+        return
+      }
+    } else {
+      existing = inserted
+    }
   }
+
+  setLinkSaving(false)
+  setLinkUrl('')
+  await refresh() // reload list
+  // Optional UX: toast “Already added” if we hit the dedupe path
+}
+
 
   const filtered = listings.filter(l => {
     const mCity = city ? l.city.toLowerCase().includes(city.toLowerCase()) : true
